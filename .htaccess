@@ -1,0 +1,52 @@
+
+# BEGIN cPanel-generated php ini directives, do not edit
+# Manual editing of this file may result in unexpected behavior.
+# To make changes to this file, use the cPanel MultiPHP INI Editor (Home >> Software >> MultiPHP INI Editor)
+# For more information, read our documentation (https://go.cpanel.net/EA4ModifyINI)
+<IfModule php8_module>
+   php_value error_log "/home2/hubdine/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+<IfModule lsapi_module>
+   php_value error_log "/home2/hubdine/logs/php.error.log"
+   php_flag log_errors On
+</IfModule>
+# END cPanel-generated php ini directives, do not edit
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# Set the “ea-php82” package as the default “PHP” programming language.
+<IfModule mime_module>
+  AddHandler application/x-httpd-ea-php82 .php .php8 .phtml
+</IfModule>
+# php -- END cPanel-generated handler, do not edit
+
+# ===================== HubDine host router (wildcard *.hubdine.com) =====================
+#   hubdine.com / www     -> this folder as-is (Sitejet portfolio)
+#   master.hubdine.com    -> /master      (platform owner dashboard)
+#   dashboard.hubdine.com -> /dashboard   (restaurant staff dashboard)
+#   {slug}.hubdine.com    -> /site        (customer ordering website, slug read from hostname)
+Options -Indexes
+RewriteEngine On
+
+# SSL validation (AutoSSL / Let's Encrypt) must never be rewritten or redirected
+RewriteRule ^\.well-known/ - [L]
+
+# Force HTTPS
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Platform hosts
+RewriteCond %{HTTP_HOST} ^master\.hubdine\.com$ [NC]
+RewriteRule ^(?!master/)(.*)$ master/$1 [L]
+
+RewriteCond %{HTTP_HOST} ^dashboard\.hubdine\.com$ [NC]
+RewriteRule ^(?!dashboard/)(.*)$ dashboard/$1 [L]
+
+# Apex + www = existing portfolio, served untouched
+RewriteCond %{HTTP_HOST} ^(www\.)?hubdine\.com$ [NC]
+RewriteRule ^ - [L]
+
+# Every other host (any restaurant slug, or a custom domain pointed here) = customer website
+RewriteRule ^(?!site/)(.*)$ site/$1 [L]
+# =========================================================================================
