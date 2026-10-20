@@ -47,6 +47,7 @@ jobs:
             master-source/package-lock.json
             admin-source/package-lock.json
 
+      # Build from current main branches so cPanel always gets the latest validated page-splitting changes.
       - name: Build Master Dashboard for cPanel root
         working-directory: master-source
         run: |
