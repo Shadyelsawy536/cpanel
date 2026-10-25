@@ -1,4 +1,4 @@
-name: Rebuild cPanel dashboards
+name: Rebuild cPanel sites and dashboards
 
 on:
   push:
@@ -38,6 +38,13 @@ jobs:
           ref: main
           path: admin-source
 
+      - name: Checkout Customer Website source
+        uses: actions/checkout@v4
+        with:
+          repository: Shadyelsawy536/cafe-website
+          ref: main
+          path: website-source
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -47,7 +54,7 @@ jobs:
             master-source/package-lock.json
             admin-source/package-lock.json
 
-      # Build from current main branches so cPanel always gets the latest validated page-splitting changes.
+      # Build all three frontends from their current main branches.
       - name: Build Master Dashboard for cPanel root
         working-directory: master-source
         run: |
@@ -60,25 +67,40 @@ jobs:
           npm ci
           npm run build -- --base=/
 
+      - name: Build Customer Website for cPanel
+        working-directory: website-source
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY secrets in the cpanel repository."
+            exit 1
+          fi
+          npm install
+          npm run build
+
       - name: Replace deployed static files
         shell: bash
         run: |
           set -euo pipefail
-          for target in cpanel/master cpanel/dashboard; do
+          for target in cpanel/master cpanel/dashboard cpanel/site; do
             find "$target" -mindepth 1 -maxdepth 1 ! -name '.htaccess' -exec rm -rf {} +
           done
           cp -a master-source/dist/. cpanel/master/
           cp -a admin-source/dist/. cpanel/dashboard/
+          cp -a website-source/dist/. cpanel/site/
 
       - name: Commit rebuilt cPanel assets
         working-directory: cpanel
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add master dashboard
+          git add master dashboard site
           if git diff --cached --quiet; then
-            echo "No generated dashboard changes to commit."
+            echo "No generated site or dashboard changes to commit."
             exit 0
           fi
-          git commit -m "Build optimized dashboards for cPanel"
+          git commit -m "Build optimized site and dashboards for cPanel"
           git push
